@@ -66,6 +66,11 @@ public class Utils {
     public static ByteBuffer ioResourceToByteBuffer(String resource, int bufferSize) throws IOException {
         ByteBuffer buffer;
 
+        if("D:\\Dropbox\\Unity\\Mega Toon Series\\Assets\\Meshtint Free Chicken Mega Toon Series\\Textures\\Mega Toon Chicken.psd".equals(resource)){
+            //resource = "textures/uv.jpg";
+            resource = "textures/fbx_working/toon_chicken.jpg";
+        }
+
         Path path = Paths.get(resource);
         if (Files.isReadable(path)) {
             try (SeekableByteChannel fc = Files.newByteChannel(path)) {

@@ -66,7 +66,15 @@ public class DummyGame implements IGameLogic {
         GameItem terrain = new GameItem(terrainMesh);
         terrain.setScale(100.0f);
 
-        animItem = AnimMeshesLoader.loadAnimGameItem("models/bob/boblamp.md5mesh", "");
+        // This is the model that is used in the toturial
+        //animItem = AnimMeshesLoader.loadAnimGameItem("models/bob/boblamp.md5mesh", "");
+
+        // This works
+        //animItem = AnimMeshesLoader.loadAnimGameItem("models/fbx_working/toon_chicken-eat.fbx", "");
+
+        // This does not :(
+        animItem = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/base-walk_without_root_motion.fbx", "");
+
         animItem.setScale(0.05f);
         animation = animItem.getCurrentAnimation();
         

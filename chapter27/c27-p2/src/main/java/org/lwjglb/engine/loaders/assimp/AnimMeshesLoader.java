@@ -49,10 +49,19 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
 
             Matrix4f transfMat = new Matrix4f().translate(vec.x(), vec.y(), vec.z());
 
+            /*
             AIQuatKey quatKey = rotationKeys.get(i);
-            AIQuaternion aiQuat = quatKey.mValue();
-            Quaternionf quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
-            transfMat.rotate(quat);
+                AIQuaternion aiQuat = quatKey.mValue();
+                Quaternionf quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
+                transfMat.rotate(quat);
+             */
+            // Ignore missing rotaion keys
+            if (i < aiNodeAnim.mNumRotationKeys()) {
+                AIQuatKey quatKey = rotationKeys.get(i);
+                AIQuaternion aiQuat = quatKey.mValue();
+                Quaternionf quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
+                transfMat.rotate(quat);
+            }
 
             if (i < aiNodeAnim.mNumScalingKeys()) {
                 aiVecKey = scalingKeys.get(i);
