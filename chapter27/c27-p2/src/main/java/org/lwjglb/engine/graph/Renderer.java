@@ -1,14 +1,17 @@
 package org.lwjglb.engine.graph;
 
+import java.lang.Math;
 import java.util.ArrayList;
+
+import org.joml.*;
+import org.lwjglb.engine.graph.LHMP.LHMPBaseMesh;
+import org.lwjglb.engine.graph.LHMP.LHMPGameItem;
 import org.lwjglb.engine.graph.lights.SpotLight;
 import org.lwjglb.engine.graph.lights.PointLight;
 import org.lwjglb.engine.graph.lights.DirectionalLight;
 import java.util.List;
 import java.util.Map;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
-import org.joml.Vector4f;
+
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL13.*;
 import org.lwjglb.engine.items.GameItem;
@@ -22,6 +25,7 @@ import org.lwjglb.engine.graph.anim.AnimatedFrame;
 import org.lwjglb.engine.graph.particles.IParticleEmitter;
 import org.lwjglb.engine.graph.shadow.ShadowCascade;
 import org.lwjglb.engine.graph.shadow.ShadowRenderer;
+import org.lwjglb.game.DummyGame;
 
 public class Renderer {
 
@@ -220,6 +224,7 @@ public class Renderer {
 
             mesh.render();
 
+
             viewMatrix.m30(m30);
             viewMatrix.m31(m31);
             viewMatrix.m32(m32);
@@ -262,8 +267,42 @@ public class Renderer {
         sceneShaderProgram.unbind();
     }
 
+    private Matrix4f joint2H = null;
+    private int switchJointCount = 0;
+    private int jointCounter = 0;
+
+
+    private long start = 0L;
+    private int iOffX = 0;
+    private int iOffY = 0;
+    private int iOffZ = 0;
+
+    private double rotAngle = 0.0;
     private void renderNonInstancedMeshes(Scene scene) {
         sceneShaderProgram.setUniform("isInstanced", 0);
+
+        // Render LHMP
+        //
+        {
+            if(joint2H != null) {
+                Mesh mesh = DummyGame.baseMesh.mesh;
+                Texture tex = DummyGame.baseMeshTestTexture;
+                Material mat = new Material(tex);
+                sceneShaderProgram.setUniform("material", mat);
+                sceneShaderProgram.setUniform("numCols", tex.getNumCols());
+                sceneShaderProgram.setUniform("numRows", tex.getNumRows());
+                shadowRenderer.bindTextures(GL_TEXTURE2);
+
+                sceneShaderProgram.setUniform("selectedNonInstanced", 0.0f);
+
+                Matrix4f modelMatrix = new Matrix4f();
+                sceneShaderProgram.setUniform("modelNonInstancedMatrix", modelMatrix);
+
+            }
+        }
+
+
+
 
         // Render each mesh with the associated game Items
         Map<Mesh, List<GameItem>> mapMeshes = scene.getGameMeshes();
@@ -280,16 +319,164 @@ public class Renderer {
 
             mesh.renderList(mapMeshes.get(mesh), (GameItem gameItem) -> {
                 sceneShaderProgram.setUniform("selectedNonInstanced", gameItem.isSelected() ? 1.0f : 0.0f);
-                Matrix4f modelMatrix = transformation.buildModelMatrix(gameItem);
+
+                float dist = 2.5f;
+
+                if (gameItem instanceof AnimGameItem) {
+
+                    if( ((AnimGameItem)gameItem).getID().equals("2HKnight") ){
+                        rotAngle += 0.001;
+                        Quaternionf rot = new Quaternionf(new AxisAngle4d(rotAngle, 0.0, 1.0, 0.0));
+                        rot = rot.mul(new Quaternionf(new AxisAngle4d(-1.5708, 1.0, 0.0, 0.0)));
+                        //gameItem.setRotation(rot);
+                        gameItem.setPosition((float)(Math.sin(rotAngle - 3.14159f))*dist, 0.0f, (float)(Math.cos(rotAngle - 3.14159f))*dist);
+                    }
+                    else if( ((AnimGameItem)gameItem).getID().equals("1HKnight") ){
+                        double counterRotAngle = rotAngle + 3.14159f;
+                        Quaternionf rot = new Quaternionf(new AxisAngle4d(counterRotAngle, 0.0, 1.0, 0.0));
+                        rot = rot.mul(new Quaternionf(new AxisAngle4d(-1.5708, 1.0, 0.0, 0.0)));
+                        //gameItem.setRotation(rot);
+                        //gameItem.setPosition((float)(Math.sin(counterRotAngle - 3.14159f))*dist, 0.0f, (float)(Math.cos(counterRotAngle - 3.14159f))*dist);
+                        gameItem.setPosition(0.0f, 0.0f, 0.0f);
+                    }
+                    else if( ((AnimGameItem)gameItem).getID().equals("2HKnight2") ){
+                        double counterRotAngle = rotAngle + 3.14159f;
+                        Quaternionf rot = new Quaternionf(new AxisAngle4d(-1.5708, 1.0, 0.0, 0.0));
+                        //gameItem.setRotation(rot);
+                        gameItem.setPosition(0.0f, 0.0f, 0.0f);
+                    }
+                }
+
+                Matrix4f modelMatrix; // = transformation.buildModelMatrix(gameItem);
+                if(gameItem.getId().equals("2HSword2")){
+
+                    /*
+                    Quaternionf rot = new Quaternionf(new AxisAngle4d(rotAngle, 0.0, 1.0, 0.0));
+
+                    rot = rot.mul(new Quaternionf(new AxisAngle4d(-1.5708, 1.0, 0.0, 0.0)));
+                    gameItem.setRotation(rot);
+                    gameItem.setPosition((float)(Math.sin(rotAngle - 3.14159f))*dist, 0.5f, (float)(Math.cos(rotAngle - 3.14159f))*dist);
+                    */
+
+                    //gameItem.setPosition(DummyGame.offX,DummyGame.offY,DummyGame.offZ);
+                    //gameItem.setPosition(-0.9199994f *1.0f, 0.35999992f*1.0f, -0.43999985f*1.0f);
+                    //gameItem.setPosition(-0.6099997f, 1.3299991f, 0.0f);
+
+                    final double deg90 = -1.5708;
+                    //double angle = -1.5708; // 90 deg in rad
+
+                    if(start == 0L){
+                        start = System.currentTimeMillis();
+                        iOffX = 3;
+                        iOffY = 3;
+                        iOffZ = 2;
+
+                        DummyGame.offX = 0;
+                        DummyGame.offY = 0;
+                        DummyGame.offZ = 0;
+                    }
+                    if(System.currentTimeMillis()-start > 50000L){
+                        ++iOffX;
+                        if(iOffX == 4){
+                            iOffX = 0;
+                            ++iOffY;
+                        }
+                        if(iOffY == 4){
+                            iOffY = 0;
+                            ++iOffZ;
+                        }
+                        if(iOffZ == 4){
+                            iOffZ = 0;
+                        }
+                        start = System.currentTimeMillis();
+                        System.out.println(iOffX + "|" + iOffY + "|" + iOffZ);
+
+                        /*
+                        iOffX = 0;
+                        iOffY = 0;
+                        iOffZ = 2;
+                         */
+                    }
+
+
+/*
+                    Quaternionf rot = new Quaternionf(new AxisAngle4d(deg90 * ((float)(Math.round(DummyGame.offX)%4)), 1.0, 0.0, 0.0));
+                    rot = rot.mul(new Quaternionf(new AxisAngle4d(deg90 * ((float)(Math.round(DummyGame.offY)%4)), 0.0, 1.0, 0.0)));
+                    rot = rot.mul(new Quaternionf(new AxisAngle4d(deg90 * ((float)(Math.round(DummyGame.offZ)%4)), 0.0, 0.0, 1.0)));
+                    gameItem.setRotation(rot);
+
+ */
+
+                    Quaternionf rot = new Quaternionf(new AxisAngle4d(deg90 * ((float)(iOffX)), 1.0, 0.0, 0.0));
+                    rot = rot.mul(new Quaternionf(new AxisAngle4d(deg90 * ((float)(iOffY)), 0.0, 1.0, 0.0)));
+                    rot = rot.mul(new Quaternionf(new AxisAngle4d(deg90 * ((float)(iOffZ)), 0.0, 0.0, 1.0)));
+                    gameItem.setRotation(rot);
+
+                    modelMatrix = transformation.buildModelMatrix(gameItem);
+
+                    if(joint2H != null) {
+                        //Matrix4f trans = joint2H.mul(modelMatrix); // modelMatrix.mul(joint2H);
+                        Matrix4f trans = modelMatrix.mul(joint2H);
+                        modelMatrix = trans;
+                    }
+                }
+                else{
+                    modelMatrix = transformation.buildModelMatrix(gameItem);
+                }
+
                 sceneShaderProgram.setUniform("modelNonInstancedMatrix", modelMatrix);
                 if (gameItem instanceof AnimGameItem) {
                     AnimGameItem animGameItem = (AnimGameItem) gameItem;
                     AnimatedFrame frame = animGameItem.getCurrentAnimation().getCurrentFrame();
                     sceneShaderProgram.setUniform("jointsMatrix", frame.getJointMatrices());
+
+                    //if( ((AnimGameItem)gameItem).getID().equals("2HKnight2") ){
+                    if( ((AnimGameItem)gameItem).getID().equals("1HKnight") ){
+                        /*
+                        switchJointCount++;
+                        if(switchJointCount > 100){
+                            switchJointCount = 0;
+                            jointCounter++;
+                            System.out.println("Counter: " + jointCounter);
+                            if(jointCounter > 17){
+                                jointCounter = 0;
+                            }
+                        }
+                        */
+                        joint2H = frame.getJointMatrices()[5]; // 11
+                    }
                 }
+                else if(gameItem instanceof LHMPGameItem){
+                    LHMPGameItem lhmp = (LHMPGameItem)gameItem;
+
+                    LHMPBaseMesh.AnimationClip clip = lhmp.getCurrentAnimationClip();
+
+                    long now = System.currentTimeMillis();
+                    long div0 = now / clip.duration;
+                    long t = now - (clip.duration*div0);
+
+
+                    LHMPBaseMesh baseMesh = DummyGame.baseMesh;
+                    Matrix4f[] finalTransforms = baseMesh.getFinalTransforms("Jump", t);
+
+                    Matrix4f[] identityJoints = new Matrix4f[150];
+                    for (int i = 0; i < identityJoints.length; i++) {
+                        identityJoints[i] = new Matrix4f();
+                    }
+                    finalTransforms = identityJoints;
+
+                    sceneShaderProgram.setUniform("jointsMatrix", finalTransforms);
+                }
+
             }
             );
         }
+    }
+
+    private static void rotateJointMatrices(Matrix4f[] jointMatrices){
+        Quaternionf rot = new Quaternionf(new AxisAngle4d(-1.5708, 1.0, 0.0, 0.0));
+        //gameItem.setRotation(rot);
+        //gameItem.setPosition(0.0f, 0.0f, 0.0f);
     }
 
     private void renderInstancedMeshes(Scene scene, Matrix4f viewMatrix) {

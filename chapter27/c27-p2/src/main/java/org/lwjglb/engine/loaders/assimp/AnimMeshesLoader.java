@@ -1,33 +1,13 @@
 package org.lwjglb.engine.loaders.assimp;
 
-import static org.lwjgl.assimp.Assimp.aiImportFile;
-import static org.lwjgl.assimp.Assimp.aiProcess_FixInfacingNormals;
-import static org.lwjgl.assimp.Assimp.aiProcess_GenSmoothNormals;
-import static org.lwjgl.assimp.Assimp.aiProcess_JoinIdenticalVertices;
-import static org.lwjgl.assimp.Assimp.aiProcess_LimitBoneWeights;
-import static org.lwjgl.assimp.Assimp.aiProcess_Triangulate;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.lwjgl.PointerBuffer;
-import org.lwjgl.assimp.AIAnimation;
-import org.lwjgl.assimp.AIBone;
-import org.lwjgl.assimp.AIMaterial;
-import org.lwjgl.assimp.AIMatrix4x4;
-import org.lwjgl.assimp.AIMesh;
-import org.lwjgl.assimp.AINode;
-import org.lwjgl.assimp.AINodeAnim;
-import org.lwjgl.assimp.AIQuatKey;
-import org.lwjgl.assimp.AIQuaternion;
-import org.lwjgl.assimp.AIScene;
-import org.lwjgl.assimp.AIVector3D;
-import org.lwjgl.assimp.AIVectorKey;
-import org.lwjgl.assimp.AIVertexWeight;
+import org.lwjgl.assimp.*;
 import org.lwjglb.engine.Utils;
 import org.lwjglb.engine.graph.Material;
 import org.lwjglb.engine.graph.Mesh;
@@ -35,9 +15,11 @@ import org.lwjglb.engine.graph.anim.AnimGameItem;
 import org.lwjglb.engine.graph.anim.AnimatedFrame;
 import org.lwjglb.engine.graph.anim.Animation;
 
+import static org.lwjgl.assimp.Assimp.*;
+
 public class AnimMeshesLoader extends StaticMeshesLoader {
 
-    private static void buildTransFormationMatrices(AINodeAnim aiNodeAnim, Node node) {
+    private static void buildTransFormationMatrices(AINodeAnim aiNodeAnim, Node node, String nodeName) {
         int numFrames = aiNodeAnim.mNumPositionKeys();
         AIVectorKey.Buffer positionKeys = aiNodeAnim.mPositionKeys();
         AIVectorKey.Buffer scalingKeys = aiNodeAnim.mScalingKeys();
@@ -47,7 +29,16 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
             AIVectorKey aiVecKey = positionKeys.get(i);
             AIVector3D vec = aiVecKey.mValue();
 
-            Matrix4f transfMat = new Matrix4f().translate(vec.x(), vec.y(), vec.z());
+            Matrix4f transfMat;
+            if(nodeName.equals("RigPelvis_$AssimpFbx$_TranslationX")){
+                //transfMat = new Matrix4f().translate(vec.x(), -vec.z(), vec.y());
+                //transfMat = new Matrix4f().translate(vec.x(), -vec.z(), vec.y());
+                transfMat = new Matrix4f().translate(vec.x(), -vec.z(), vec.y());
+            }
+            else{
+                transfMat = new Matrix4f().translate(vec.x(), vec.y(), vec.z());
+            }
+
 
             /*
             AIQuatKey quatKey = rotationKeys.get(i);
@@ -59,7 +50,14 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
             if (i < aiNodeAnim.mNumRotationKeys()) {
                 AIQuatKey quatKey = rotationKeys.get(i);
                 AIQuaternion aiQuat = quatKey.mValue();
-                Quaternionf quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
+                Quaternionf quat;
+                if(nodeName.equals("RigPelvis_$AssimpFbx$_RotationX")){
+                    quat = new Quaternionf(aiQuat.x(), aiQuat.z(), aiQuat.y(), aiQuat.w());
+                }
+                else{
+                    quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
+                }
+                //Quaternionf quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
                 transfMat.rotate(quat);
             }
 
@@ -73,19 +71,62 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         }
     }
 
-    public static AnimGameItem loadAnimGameItem(String resourcePath, String texturesDir)
+    public static AnimGameItem loadAnimGameItem(String resourcePath, String texturesDir, String id)
             throws Exception {
         return loadAnimGameItem(resourcePath, texturesDir,
                 aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
-                | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights);
+                | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights, id);
     }
 
-    public static AnimGameItem loadAnimGameItem(String resourcePath, String texturesDir, int flags)
+    public static AnimGameItem loadAnimGameItem(String resourcePath, String texturesDir, int flags, String id)
             throws Exception {
         AIScene aiScene = aiImportFile(resourcePath, flags);
         if (aiScene == null) {
             throw new Exception("Error loading model");
         }
+
+        /*
+        Map<String, String> properties = new LinkedHashMap<>();
+        for (int i = 0; i < aiScene.mMetaData().mNumProperties(); i++) {
+            String key = aiScene.mMetaData().mKeys().get(i).dataString();
+            int valType = aiScene.mMetaData().mValues().mType();
+
+            AIMetaDataEntry entry = (aiScene.mMetaData().mValues().get(i));
+
+            java.nio.ByteBuffer buf = entry.mData(entry.sizeof()*2);
+
+            String s = StandardCharsets.UTF_8.decode(buf).toString();
+
+             valType = valType;
+            //properties.put(,aiScene.mMetaData().mValues().mType());
+        }
+
+        // TODO: Check?
+Update:
+Assimp reads the axis properties (GlobalSettings), and stores them in in the aiScene's metadata.
+They can be accessed like this:
+
+int upAxis = 0;
+scene->mMetaData->Get<int>("UpAxis", upAxis);
+int upAxisSign = 1;
+scene->mMetaData->Get<int>("UpAxisSign", upAxisSign);
+
+etc..
+
+Converting the 0,1,2 values to unit vectors vectors (right, up, forward), constructing a matrix from these and multiplying the scene's root node transform by it solved the issue for me.
+
+Creating the matrix:
+
+aiVector3D upVec = upAxis == 0 ? aiVector3D(upAxisSign,0,0) : upAxis == 1 ? aiVector3D(0, upAxisSign,0) : aiVector3D(0, 0, upAxisSign);
+aiVector3D forwardVec = frontAxis == 0 ? aiVector3D(frontAxisSign, 0, 0) : frontAxis == 1 ? aiVector3D(0, frontAxisSign, 0) : aiVector3D(0, 0, frontAxisSign);
+aiVector3D rightVec = coordAxis == 0 ? aiVector3D(coordAxisSign, 0, 0) : coordAxis == 1 ? aiVector3D(0, coordAxisSign, 0) : aiVector3D(0, 0, coordAxisSign);
+aiMatrix4x4 mat(rightVec.x, rightVec.y, rightVec.z, 0.0f,
+   upVec.x, upVec.y, upVec.z, 0.0f,
+   forwardVec.x, forwardVec.y, forwardVec.z, 0.0f,
+   0.0f, 0.0f, 0.0f, 1.0f);
+
+And then finally, multiply the scene->mRootNode->mTransformation with this matrix.
+         */
 
         int numMaterials = aiScene.mNumMaterials();
         PointerBuffer aiMaterials = aiScene.mMaterials();
@@ -98,18 +139,70 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         List<Bone> boneList = new ArrayList<>();
         int numMeshes = aiScene.mNumMeshes();
         PointerBuffer aiMeshes = aiScene.mMeshes();
-        Mesh[] meshes = new Mesh[numMeshes];
-        for (int i = 0; i < numMeshes; i++) {
-            AIMesh aiMesh = AIMesh.create(aiMeshes.get(i));
-            Mesh mesh = processMesh(aiMesh, materials, boneList);
-            meshes[i] = mesh;
+
+        Mesh[] meshes;
+        if(texturesDir.startsWith("@")){
+            meshes = new Mesh[1];
+            for (int i = 0; i < 1; i++) {
+                AIMesh aiMesh = AIMesh.create(aiMeshes.get(i));
+                Mesh mesh = processMesh(aiMesh, materials, boneList);
+                meshes[i] = mesh;
+            }
+        }
+        else{
+            meshes = new Mesh[numMeshes];
+            for (int i = 0; i < numMeshes; i++) {
+                AIMesh aiMesh = AIMesh.create(aiMeshes.get(i));
+                Mesh mesh = processMesh(aiMesh, materials, boneList);
+                meshes[i] = mesh;
+            }
         }
 
+
         AINode aiRootNode = aiScene.mRootNode();
-        Matrix4f rootTransfromation = AnimMeshesLoader.toMatrix(aiRootNode.mTransformation());
+        Matrix4f rootTransformation = AnimMeshesLoader.toMatrix(aiRootNode.mTransformation());
+
+        Map<String, String> properties = new LinkedHashMap<>();
+        for (int i = 0; i < aiScene.mMetaData().mNumProperties(); i++) {
+            // Possible keys are "UpAxis" "UpAxisSign" "FrontAxisSign", "FrontAxis", "CoordAxis", "CoordAxisSign", "OriginalUpAxis", "OriginalUpAxisSign", "UnitScaleFactor", "OriginalUnitScaleFactor", "AmbientColor" etc.
+            String key = aiScene.mMetaData().mKeys().get(i).dataString();
+            int valType = aiScene.mMetaData().mValues().mType();
+
+            AIMetaDataEntry entry = (aiScene.mMetaData().mValues().get(i));
+
+            // entry is still a buffer with no obvious get method. With other assimp structures this .get(i) did the trick
+
+            java.nio.ByteBuffer buf = entry.mData(entry.sizeof()*2);
+            String s = StandardCharsets.US_ASCII.decode(buf).toString();
+
+            // And using the mData version and passing it a ByteBuffer to copy the data did not work either
+
+            //properties.put(key, ...); // what now...
+        }
+
+        int upAxis = 0;
+        int frontAxis = 2;
+        int coordAxis = 1;
+        float upAxisSign = 1.0f;
+        float frontAxisSign = 1.0f;
+        float coordAxisSign = 1.0f;
+
+        Vector3f upVec = upAxis == 0 ? new Vector3f(upAxisSign,0,0) : upAxis == 1 ? new Vector3f(0, upAxisSign,0) : new Vector3f(0, 0, upAxisSign);
+        Vector3f forwardVec = frontAxis == 0 ? new Vector3f(frontAxisSign, 0, 0) : frontAxis == 1 ? new Vector3f(0, frontAxisSign, 0) : new Vector3f(0, 0, frontAxisSign);
+        Vector3f rightVec = coordAxis == 0 ? new Vector3f(coordAxisSign, 0, 0) : coordAxis == 1 ? new Vector3f(0, coordAxisSign, 0) : new Vector3f(0, 0, coordAxisSign);
+
+        Matrix4f unitVectorTransform = new Matrix4f(
+                rightVec.x, rightVec.y, rightVec.z, 0.0f,
+                upVec.x, upVec.y, upVec.z, 0.0f,
+                forwardVec.x, forwardVec.y, forwardVec.z, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+        );
+
+        rootTransformation = rootTransformation.mul(unitVectorTransform);
+
         Node rootNode = processNodesHierarchy(aiRootNode, null);
-        Map<String, Animation> animations = processAnimations(aiScene, boneList, rootNode, rootTransfromation);
-        AnimGameItem item = new AnimGameItem(meshes, animations);
+        Map<String, Animation> animations = processAnimations(aiScene, boneList, rootNode, rootTransformation);
+        AnimGameItem item = new AnimGameItem(meshes, animations, id);
 
         return item;
     }
@@ -154,7 +247,7 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
                 AINodeAnim aiNodeAnim = AINodeAnim.create(aiChannels.get(j));
                 String nodeName = aiNodeAnim.mNodeName().dataString();
                 Node node = rootNode.findByName(nodeName);
-                buildTransFormationMatrices(aiNodeAnim, node);
+                buildTransFormationMatrices(aiNodeAnim, node, nodeName);
             }
 
             List<AnimatedFrame> frames = buildAnimationFrames(boneList, rootNode, rootTransformation);
@@ -219,6 +312,12 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         processTextCoords(aiMesh, textures);
         processIndices(aiMesh, indices);
         processBones(aiMesh, boneList, boneIds, weights);
+        if ( textures.size() == 0) {
+            int numElements = (vertices.size() / 3) * 2;
+            for (int i=0; i<numElements; i++) {
+                textures.add(0.0f);
+            }
+        }
 
         Mesh mesh = new Mesh(Utils.listToArray(vertices), Utils.listToArray(textures),
                 Utils.listToArray(normals), Utils.listIntToArray(indices),

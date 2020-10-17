@@ -12,12 +12,18 @@ public class AnimGameItem extends GameItem {
 
     private Animation currentAnimation;
 
-    public AnimGameItem(Mesh[] meshes, Map<String, Animation> animations) {
+    private String id;
+
+    public AnimGameItem(Mesh[] meshes, Map<String, Animation> animations, String id) {
         super(meshes);
         this.animations = animations;
         Optional<Map.Entry<String, Animation>> entry = animations.entrySet().stream().findFirst();
         currentAnimation = entry.isPresent() ? entry.get().getValue() : null;
+
+        this.id = id;
     }
+
+    public String getID() { return id; }
 
     public Animation getAnimation(String name) {
         return animations.get(name);

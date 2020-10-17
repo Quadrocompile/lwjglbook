@@ -1,8 +1,8 @@
 package org.lwjglb.game;
 
-import org.joml.Vector2f;
-import org.joml.Vector3f;
-import org.joml.Vector4f;
+import org.joml.*;
+
+import static org.lwjgl.assimp.Assimp.*;
 import static org.lwjgl.glfw.GLFW.*;
 import org.lwjglb.engine.IGameLogic;
 import org.lwjglb.engine.MouseInput;
@@ -10,8 +10,11 @@ import org.lwjglb.engine.Scene;
 import org.lwjglb.engine.SceneLight;
 import org.lwjglb.engine.Window;
 import org.lwjglb.engine.graph.Camera;
+import org.lwjglb.engine.graph.LHMP.LHMPBaseMesh;
+import org.lwjglb.engine.graph.LHMP.LHMPGameItem;
 import org.lwjglb.engine.graph.Mesh;
 import org.lwjglb.engine.graph.Renderer;
+import org.lwjglb.engine.graph.Texture;
 import org.lwjglb.engine.graph.anim.AnimGameItem;
 import org.lwjglb.engine.graph.anim.Animation;
 import org.lwjglb.engine.graph.lights.DirectionalLight;
@@ -20,6 +23,9 @@ import org.lwjglb.engine.items.GameItem;
 import org.lwjglb.engine.items.SkyBox;
 import org.lwjglb.engine.loaders.assimp.AnimMeshesLoader;
 import org.lwjglb.engine.loaders.assimp.StaticMeshesLoader;
+import org.lwjglb.engine.loaders.assimp.TextureCache;
+
+import java.lang.Math;
 
 public class DummyGame implements IGameLogic {
 
@@ -43,9 +49,23 @@ public class DummyGame implements IGameLogic {
 
     private boolean sceneChanged;
 
-    private Animation animation;
+    private Animation animationDebug;
 
-    private AnimGameItem animItem;
+    private Animation animation1;
+    private Animation animation2;
+
+    private AnimGameItem animItemDebug;
+
+    private AnimGameItem animItem1;
+    private AnimGameItem animItem2;
+
+    public static float offX = 0.0f;
+    public static float offY = 0.0f;
+    public static float offZ = 0.0f;
+
+    public static LHMPBaseMesh baseMesh;
+    public static Texture baseMeshTestTexture;
+    public static LHMPGameItem lhmpGameItem;
 
     public DummyGame() {
         renderer = new Renderer();
@@ -72,13 +92,85 @@ public class DummyGame implements IGameLogic {
         // This works
         //animItem = AnimMeshesLoader.loadAnimGameItem("models/fbx_working/toon_chicken-eat.fbx", "");
 
-        // This does not :(
-        animItem = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/base-walk_without_root_motion.fbx", "");
+        System.out.println("Loading models...");
 
-        animItem.setScale(0.05f);
-        animation = animItem.getCurrentAnimation();
-        
-        scene.setGameItems(new GameItem[]{animItem, terrain});
+        baseMesh = new LHMPBaseMesh();
+        baseMesh.loadBaseMesh("models/fbx_not_working/Base Normal.FBX", aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
+                | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights, "BASEMESH");
+        //baseMesh.loadBaseMesh("models/fbx_not_working/Base@Jump.FBX", aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
+        //        | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights, "BASEMESH");
+        baseMesh.loadAnimation("Jump", "models/fbx_not_working/Base@Jump.FBX", aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
+                | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights);
+
+        baseMeshTestTexture = TextureCache.getInstance().getTexture("models/fbx_not_working/Male White Barbarian 03 Black.png");
+
+        lhmpGameItem = new LHMPGameItem(baseMesh, baseMeshTestTexture,  "LHMP");
+        lhmpGameItem.setPosition(0.0f, 0.5f, 0.0f);
+        lhmpGameItem.setScale(0.01f);
+        lhmpGameItem.setcurrentAnimationClip(baseMesh.getAnimationClip("Jump"));
+
+        // This does not :(
+        //animItemDebug = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@Idle.FBX", "@Female White Knight 04 Magenta.png", "2HKnight2");
+        //animItemDebug = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@Melee Right Attack 01.FBX", "@Female White Knight 04 Magenta.png", "2HKnight2");
+        animItemDebug = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@Roll Forward Without Root Motion.FBX", "@Female White Knight 04 Magenta.png", "2HKnight2");
+        //animItemDebug = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@Jump.FBX", "@Female White Knight 04 Magenta.png", "2HKnight2");
+        //animItemDebug = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base Normal.FBX", "@Female White Knight 04 Magenta.png", "2HKnight2");
+
+        animItem1 = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@TH Sword Melee Attack 01.FBX", "@Female White Knight 04 Magenta.png", "2HKnight");
+        //animItem2 = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@Melee Right Attack 01.FBX", "@Male Black Knight 04 White.png", "1HKnight");
+        //animItem2 = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@Melee Right Attack 02.FBX", "@Male Black Knight 04 White.png", "1HKnight");
+        animItem2 = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@Jump.FBX", "@Male Black Knight 04 White.png", "1HKnight");
+        //animItem = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base Normal.FBX", "");
+
+        animItemDebug.setScale(0.01f);
+
+        animItem1.setScale(0.01f);
+        animItem2.setScale(0.01f);
+
+        double angle = -1.5708; // 90 deg in rad
+        double x = 0.0f * Math.sin(angle/2.0);
+        double y = 0.0f * Math.sin(angle/2.0);
+        double z = 1.0f * Math.sin(angle/2.0);
+        double w = Math.cos(angle/2.0);
+
+        Quaternionf rot = new Quaternionf(new AxisAngle4d(angle, 1.0, 0.0, 0.0));
+        //rot = rot.mul(new Quaternionf(new AxisAngle4d(angle, 1.0, 0.0, 0.0)));
+        //animItemDebug.setRotation(rot);
+        //animItem1.setRotation(rot);
+        //animItem2.setRotation(rot);
+
+        animItemDebug.setPosition(0.0f, 0.5f, 0.0f);
+
+        animItem1.setPosition(-2.0f, 0.5f, 0.0f);
+        animItem2.setPosition(2.0f, 0.5f, 0.0f);
+
+        animationDebug = animItemDebug.getCurrentAnimation();
+
+        animation1 = animItem1.getCurrentAnimation();
+        animation2 = animItem2.getCurrentAnimation();
+
+        //Mesh[] baseMesh = StaticMeshesLoader.load("models/fbx_not_working/Base Normal.FBX", "models/terrain");
+        //GameItem base = new GameItem(baseMesh);
+
+        Mesh[] houseMesh = StaticMeshesLoader.load("models/house/house.obj", "models/house");
+        GameItem house = new GameItem(houseMesh);
+        Mesh[] swordMesh = StaticMeshesLoader.load("models/fbx_not_working/TH Sword 01.FBX", "@TH Sword 01 White.png");
+        GameItem sword2H = new GameItem(swordMesh, "2HSword");
+        sword2H.setScale(0.01f);
+        sword2H.setPosition(-2.0f, 0.5f, 0.0f);
+
+        //Mesh[] swordMesh2 = StaticMeshesLoader.load("models/fbx_not_working/TH Sword 01.FBX", "@TH Sword 01 White.png");
+        Mesh[] swordMesh2 = StaticMeshesLoader.load("models/fbx_not_working/Sword 04.FBX", "@Sword 04 Purple.png"); //, -0.9199994f *10.0f, 0.35999992f*10.0f, -0.43999985f*10.0f, 0.0f, 0.0f, 0.0f);
+        GameItem sword2H2 = new GameItem(swordMesh2, "2HSword2");
+        sword2H2.setScale(0.01f);
+        rot = rot.mul(new Quaternionf(new AxisAngle4d(angle, 0.0, 1.0, 0.0)));
+        //sword2H2.setRotation(rot);
+        //sword2H2.setPosition(-2.0f, 0.5f, 0.0f);
+        //sword2H2.setPosition(-0.9199994f *1.0f, 0.35999992f*1.0f, -0.43999985f*1.0f);
+
+        //scene.setGameItems(new GameItem[]{animItem, terrain, base});
+        //scene.setGameItems(new GameItem[]{lhmpGameItem, animItemDebug, animItem1, animItem2,  sword2H, sword2H2, terrain});
+        scene.setGameItems(new GameItem[]{animItem2});
 
         // Shadows
         scene.setRenderShadows(true);
@@ -154,7 +246,48 @@ public class DummyGame implements IGameLogic {
         }
         if (window.isKeyPressed(GLFW_KEY_SPACE)) {
             sceneChanged = true;
-            animation.nextFrame();
+            animationDebug.nextFrame();
+            animation1.nextFrame();
+            animation2.nextFrame();
+        }
+        /*
+        if (window.isKeyPressed(GLFW_KEY_1)) {
+            offX -= 0.01f;
+        } else if (window.isKeyPressed(GLFW_KEY_2)) {
+            offX += 0.01f;
+        }
+        if (window.isKeyPressed(GLFW_KEY_3)) {
+            offY -= 0.01f;
+        } else if (window.isKeyPressed(GLFW_KEY_4)) {
+            offY += 0.01f;
+        }
+        if (window.isKeyPressed(GLFW_KEY_5)) {
+            offZ -= 0.01f;
+        } else if (window.isKeyPressed(GLFW_KEY_6)) {
+            offZ += 0.01f;
+        }
+        if (window.isKeyPressed(GLFW_KEY_9)) {
+            System.out.println(offX + " | " +  offY + " | " + offZ);
+        }
+
+         */
+        if (window.isKeyPressed(GLFW_KEY_1)) {
+            offX -= 0.1f;
+        } else if (window.isKeyPressed(GLFW_KEY_2)) {
+            offX += 0.1f;
+        }
+        if (window.isKeyPressed(GLFW_KEY_3)) {
+            offY -= 0.1f;
+        } else if (window.isKeyPressed(GLFW_KEY_4)) {
+            offY += 0.1f;
+        }
+        if (window.isKeyPressed(GLFW_KEY_5)) {
+            offZ -= 0.1f;
+        } else if (window.isKeyPressed(GLFW_KEY_6)) {
+            offZ += 0.1f;
+        }
+        if (window.isKeyPressed(GLFW_KEY_9)) {
+            System.out.println(offX + " | " +  offY + " | " + offZ);
         }
     }
 

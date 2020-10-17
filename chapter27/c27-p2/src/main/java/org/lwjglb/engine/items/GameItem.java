@@ -22,6 +22,8 @@ public class GameItem {
 
     private boolean insideFrustum;
 
+    private String id = "-";
+
     public GameItem() {
         selected = false;
         position = new Vector3f();
@@ -40,6 +42,16 @@ public class GameItem {
     public GameItem(Mesh[] meshes) {
         this();
         this.meshes = meshes;
+    }
+
+    public GameItem(Mesh[] meshes, String id) {
+        this();
+        this.meshes = meshes;
+        this.id = id;
+    }
+
+    public String getId(){
+        return id;
     }
 
     public Vector3f getPosition() {

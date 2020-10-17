@@ -94,6 +94,10 @@ public class Mesh {
             if (vecNormalsBuffer.capacity() > 0) {
                 vecNormalsBuffer.put(normals).flip();
             } else {
+                // free previously allocated buffer!
+                if (vecNormalsBuffer != null) {
+                    MemoryUtil.memFree(vecNormalsBuffer);
+                }
                 // Create empty structure
                 vecNormalsBuffer = MemoryUtil.memAllocFloat(positions.length);
             }
