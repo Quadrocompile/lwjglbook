@@ -181,8 +181,8 @@ And then finally, multiply the scene->mRootNode->mTransformation with this matri
         }
 
         int upAxis = 0;
-        int frontAxis = 2;
-        int coordAxis = 1;
+        int frontAxis = 1;
+        int coordAxis = 2;
         float upAxisSign = 1.0f;
         float frontAxisSign = 1.0f;
         float coordAxisSign = 1.0f;
