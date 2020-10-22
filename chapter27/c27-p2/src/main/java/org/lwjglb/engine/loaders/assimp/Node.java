@@ -4,8 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 public class Node {
+
+    private static final Matrix4f CORRECTION = new Matrix4f().rotate((float)Math.toRadians(-90.0), new Vector3f(1,0,0));
 
     private final List<Node> children;
 
@@ -15,16 +18,20 @@ public class Node {
 
     private final Node parent;
 
-    public Node(String name, Node parent) {
+    private final Matrix4f mTransformation;
+
+    public Node(String name, Node parent, Matrix4f mTransformation) {
         this.name = name;
         this.parent = parent;
         this.transformations = new ArrayList<>();
         this.children = new ArrayList<>();
+
+        this.mTransformation = mTransformation;
     }
 
     public static Matrix4f getParentTransforms(Node node, int framePos) {
         if (node == null) {
-            return new Matrix4f();
+            return new Matrix4f(); //new Matrix4f(CORRECTION);
         } else {
             Matrix4f parentTransform = new Matrix4f(getParentTransforms(node.getParent(), framePos));
             List<Matrix4f> transformations = node.getTransformations();
@@ -35,7 +42,7 @@ public class Node {
             } else if ( transfSize > 0 ) {
                 nodeTransform = transformations.get(transfSize - 1);
             } else {
-                nodeTransform = new Matrix4f();
+                nodeTransform = node.getmTransformation(); // new Matrix4f();
             }
             return parentTransform.mul(nodeTransform);
         }
@@ -87,5 +94,13 @@ public class Node {
 
     public Node getParent() {
         return parent;
+    }
+
+    public Matrix4f getmTransformation(){
+        return this.mTransformation;
+    }
+
+    public String toString(){
+        return name;
     }
 }

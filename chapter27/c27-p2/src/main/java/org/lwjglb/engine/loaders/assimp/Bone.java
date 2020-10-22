@@ -28,4 +28,7 @@ public class Bone {
         return offsetMatrix;
     }
 
+    public String toString(){
+        return this.boneName + " [" + boneId + "]";
+    }
 }

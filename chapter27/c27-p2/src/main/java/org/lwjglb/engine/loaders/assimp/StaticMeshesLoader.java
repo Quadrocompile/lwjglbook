@@ -27,6 +27,8 @@ public class StaticMeshesLoader {
         return load(resourcePath, texturesDir,
                 aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
                         | aiProcess_FixInfacingNormals, tx, ty, tz, rx, ry, rz);
+
+        // aiProcess_PreTransformVertices transforms the vertices but strips out any animation apparently
     }
 
     public static Mesh[] load(String resourcePath, String texturesDir, int flags, float tx, float ty, float tz, float rx, float ry, float rz) throws Exception {

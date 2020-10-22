@@ -106,7 +106,9 @@ public class DummyGame implements IGameLogic {
          */
 
 
-        animItem2 = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@Jump.FBX", "@Male Black Knight 04 White.png", "1HKnight");
+        //animItem2 = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@Jump.FBX", "@Male Black Knight 04 White.png", "1HKnight");
+        animItem2 = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Base@TH Sword Melee Attack 01.FBX", "@Male Black Knight 04 White.png", "1HKnight");
+        //animItem2 = AnimMeshesLoader.loadAnimGameItem("models/fbx_not_working/Elephant 01@Walk Forward WO Root.FBX", "@Elephant 01 Red.png", "1HKnight");
 
         animItem2.setScale(0.01f);
 

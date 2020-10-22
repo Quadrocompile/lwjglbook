@@ -6,6 +6,7 @@ import java.util.*;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.assimp.*;
 import org.lwjglb.engine.Utils;
@@ -19,45 +20,44 @@ import static org.lwjgl.assimp.Assimp.*;
 
 public class AnimMeshesLoader extends StaticMeshesLoader {
 
+    private static final Matrix4f CORRECTION = new Matrix4f().rotate((float)Math.toRadians(90.0), new Vector3f(1,0,0));
+
     private static void buildTransFormationMatrices(AINodeAnim aiNodeAnim, Node node, String nodeName) {
-        int numFrames = aiNodeAnim.mNumPositionKeys();
+        int numFrames = Math.max(Math.max(aiNodeAnim.mNumPositionKeys(), aiNodeAnim.mNumScalingKeys()), aiNodeAnim.mNumRotationKeys());
         AIVectorKey.Buffer positionKeys = aiNodeAnim.mPositionKeys();
         AIVectorKey.Buffer scalingKeys = aiNodeAnim.mScalingKeys();
         AIQuatKey.Buffer rotationKeys = aiNodeAnim.mRotationKeys();
 
         for (int i = 0; i < numFrames; i++) {
-            AIVectorKey aiVecKey = positionKeys.get(i);
-            AIVector3D vec = aiVecKey.mValue();
 
-            Matrix4f transfMat;
-            if(nodeName.equals("RigPelvis_$AssimpFbx$_TranslationX")){
-                //transfMat = new Matrix4f().translate(vec.x(), -vec.z(), vec.y());
-                //transfMat = new Matrix4f().translate(vec.x(), -vec.z(), vec.y());
-                transfMat = new Matrix4f().translate(vec.x(), -vec.z(), vec.y());
+            AIVectorKey aiVecKey;
+            AIVector3D vec;
+
+            Matrix4f transfMat = new Matrix4f();
+
+            if (i < aiNodeAnim.mNumPositionKeys()) {
+                aiVecKey = positionKeys.get(i);
+                vec = aiVecKey.mValue();
+                transfMat = new Matrix4f().translate(vec.x(), vec.y(), vec.z());
             }
-            else{
+            else if(aiNodeAnim.mNumPositionKeys() > 0){
+                aiVecKey = positionKeys.get(0);
+                vec = aiVecKey.mValue();
                 transfMat = new Matrix4f().translate(vec.x(), vec.y(), vec.z());
             }
 
-
-            /*
-            AIQuatKey quatKey = rotationKeys.get(i);
-                AIQuaternion aiQuat = quatKey.mValue();
-                Quaternionf quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
-                transfMat.rotate(quat);
-             */
-            // Ignore missing rotaion keys
             if (i < aiNodeAnim.mNumRotationKeys()) {
                 AIQuatKey quatKey = rotationKeys.get(i);
                 AIQuaternion aiQuat = quatKey.mValue();
                 Quaternionf quat;
-                if(nodeName.equals("RigPelvis_$AssimpFbx$_RotationX")){
-                    quat = new Quaternionf(aiQuat.x(), aiQuat.z(), aiQuat.y(), aiQuat.w());
-                }
-                else{
-                    quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
-                }
-                //Quaternionf quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
+                quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
+                transfMat.rotate(quat);
+            }
+            else if(aiNodeAnim.mNumRotationKeys() > 0){
+                AIQuatKey quatKey = rotationKeys.get(0);
+                AIQuaternion aiQuat = quatKey.mValue();
+                Quaternionf quat;
+                quat = new Quaternionf(aiQuat.x(), aiQuat.y(), aiQuat.z(), aiQuat.w());
                 transfMat.rotate(quat);
             }
 
@@ -66,9 +66,15 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
                 vec = aiVecKey.mValue();
                 transfMat.scale(vec.x(), vec.y(), vec.z());
             }
+            else if(aiNodeAnim.mNumScalingKeys() > 0){
+                aiVecKey = scalingKeys.get(0);
+                vec = aiVecKey.mValue();
+                transfMat.scale(vec.x(), vec.y(), vec.z());
+            }
 
             node.addTransformation(transfMat);
         }
+
     }
 
     public static AnimGameItem loadAnimGameItem(String resourcePath, String texturesDir, String id)
@@ -84,49 +90,6 @@ public class AnimMeshesLoader extends StaticMeshesLoader {
         if (aiScene == null) {
             throw new Exception("Error loading model");
         }
-
-        /*
-        Map<String, String> properties = new LinkedHashMap<>();
-        for (int i = 0; i < aiScene.mMetaData().mNumProperties(); i++) {
-            String key = aiScene.mMetaData().mKeys().get(i).dataString();
-            int valType = aiScene.mMetaData().mValues().mType();
-
-            AIMetaDataEntry entry = (aiScene.mMetaData().mValues().get(i));
-
-            java.nio.ByteBuffer buf = entry.mData(entry.sizeof()*2);
-
-            String s = StandardCharsets.UTF_8.decode(buf).toString();
-
-             valType = valType;
-            //properties.put(,aiScene.mMetaData().mValues().mType());
-        }
-
-        // TODO: Check?
-Update:
-Assimp reads the axis properties (GlobalSettings), and stores them in in the aiScene's metadata.
-They can be accessed like this:
-
-int upAxis = 0;
-scene->mMetaData->Get<int>("UpAxis", upAxis);
-int upAxisSign = 1;
-scene->mMetaData->Get<int>("UpAxisSign", upAxisSign);
-
-etc..
-
-Converting the 0,1,2 values to unit vectors vectors (right, up, forward), constructing a matrix from these and multiplying the scene's root node transform by it solved the issue for me.
-
-Creating the matrix:
-
-aiVector3D upVec = upAxis == 0 ? aiVector3D(upAxisSign,0,0) : upAxis == 1 ? aiVector3D(0, upAxisSign,0) : aiVector3D(0, 0, upAxisSign);
-aiVector3D forwardVec = frontAxis == 0 ? aiVector3D(frontAxisSign, 0, 0) : frontAxis == 1 ? aiVector3D(0, frontAxisSign, 0) : aiVector3D(0, 0, frontAxisSign);
-aiVector3D rightVec = coordAxis == 0 ? aiVector3D(coordAxisSign, 0, 0) : coordAxis == 1 ? aiVector3D(0, coordAxisSign, 0) : aiVector3D(0, 0, coordAxisSign);
-aiMatrix4x4 mat(rightVec.x, rightVec.y, rightVec.z, 0.0f,
-   upVec.x, upVec.y, upVec.z, 0.0f,
-   forwardVec.x, forwardVec.y, forwardVec.z, 0.0f,
-   0.0f, 0.0f, 0.0f, 1.0f);
-
-And then finally, multiply the scene->mRootNode->mTransformation with this matrix.
-         */
 
         int numMaterials = aiScene.mNumMaterials();
         PointerBuffer aiMaterials = aiScene.mMaterials();
@@ -162,6 +125,7 @@ And then finally, multiply the scene->mRootNode->mTransformation with this matri
         AINode aiRootNode = aiScene.mRootNode();
         Matrix4f rootTransformation = AnimMeshesLoader.toMatrix(aiRootNode.mTransformation());
 
+        /*
         Map<String, String> properties = new LinkedHashMap<>();
         for (int i = 0; i < aiScene.mMetaData().mNumProperties(); i++) {
             // Possible keys are "UpAxis" "UpAxisSign" "FrontAxisSign", "FrontAxis", "CoordAxis", "CoordAxisSign", "OriginalUpAxis", "OriginalUpAxisSign", "UnitScaleFactor", "OriginalUnitScaleFactor", "AmbientColor" etc.
@@ -179,6 +143,7 @@ And then finally, multiply the scene->mRootNode->mTransformation with this matri
 
             //properties.put(key, ...); // what now...
         }
+
 
         int upAxis = 0;
         int frontAxis = 1;
@@ -198,9 +163,19 @@ And then finally, multiply the scene->mRootNode->mTransformation with this matri
                 0.0f, 0.0f, 0.0f, 1.0f
         );
 
-        rootTransformation = rootTransformation.mul(unitVectorTransform);
+        // EXPERIMENT
+        //rootTransformation = rootTransformation.mul(unitVectorTransform);
 
-        Node rootNode = processNodesHierarchy(aiRootNode, null);
+        System.out.println("Processing nodes");
+        */
+        Node rootNode = processNodesHierarchy(aiRootNode, null, 0);
+
+        // Add dummy nodes
+        boneList.add(new Bone(18,"Dummy Prop Left", new Matrix4f()));
+        boneList.add(new Bone(19,"Dummy Prop Head", new Matrix4f()));
+        boneList.add(new Bone(20,"Dummy Prop Right", new Matrix4f()));
+        boneList.add(new Bone(21,"Dummy Prop Back", new Matrix4f()));
+
         Map<String, Animation> animations = processAnimations(aiScene, boneList, rootNode, rootTransformation);
         AnimGameItem item = new AnimGameItem(meshes, animations, id);
 
@@ -246,6 +221,7 @@ And then finally, multiply the scene->mRootNode->mTransformation with this matri
             for (int j = 0; j < numChanels; j++) {
                 AINodeAnim aiNodeAnim = AINodeAnim.create(aiChannels.get(j));
                 String nodeName = aiNodeAnim.mNodeName().dataString();
+                System.out.println("Lookup node '" + nodeName + "'");
                 Node node = rootNode.findByName(nodeName);
                 buildTransFormationMatrices(aiNodeAnim, node, nodeName);
             }
@@ -334,6 +310,7 @@ And then finally, multiply the scene->mRootNode->mTransformation with this matri
         return mesh;
     }
 
+    /*
     private static Node processNodesHierarchy(AINode aiNode, Node parentNode) {
         String nodeName = aiNode.mName().dataString();
         Node node = new Node(nodeName, parentNode);
@@ -343,6 +320,35 @@ And then finally, multiply the scene->mRootNode->mTransformation with this matri
         for (int i = 0; i < numChildren; i++) {
             AINode aiChildNode = AINode.create(aiChildren.get(i));
             Node childNode = processNodesHierarchy(aiChildNode, node);
+            node.addChild(childNode);
+        }
+
+        return node;
+    }
+     */
+
+    private static Node processNodesHierarchy(AINode aiNode, Node parentNode, int depth) {
+        String nodeName = aiNode.mName().dataString();
+        Node node = new Node(nodeName, parentNode, toMatrix(aiNode.mTransformation()));
+
+        for (int i = 0; i < depth; i++) {
+            if(i==depth-1) {
+                //System.out.print("|-");
+            }
+            else{
+                //System.out.print("  ");
+            }
+            System.out.print("\t");
+        }
+        //System.out.print("+");
+        //System.out.println(" " + nodeName + "");
+        System.out.println("" + nodeName + "");
+
+        int numChildren = aiNode.mNumChildren();
+        PointerBuffer aiChildren = aiNode.mChildren();
+        for (int i = 0; i < numChildren; i++) {
+            AINode aiChildNode = AINode.create(aiChildren.get(i));
+            Node childNode = processNodesHierarchy(aiChildNode, node, depth+1);
             node.addChild(childNode);
         }
 

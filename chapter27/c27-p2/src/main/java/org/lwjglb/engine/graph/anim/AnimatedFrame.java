@@ -21,12 +21,13 @@ public class AnimatedFrame {
     }
 
     public Matrix4f[] getJointMatrices() {
+
         /*
-        Matrix4f[] idMats = new Matrix4f[MAX_JOINTS];
+        Matrix4f[] identityMats = new Matrix4f[MAX_JOINTS];
         for (int i = 0; i < MAX_JOINTS; i++) {
-            idMats[i] = new Matrix4f();
+            identityMats[i] = new Matrix4f();
         }
-        if(1==1) return idMats;
+        if(1==1) return identityMats;
         // */
 
         final double deg90 = -1.5708;
